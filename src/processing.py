@@ -15,8 +15,13 @@ Pasos del pipeline:
                donde dias_reales = fecha_corte_hoy - fecha_corte_hace_N_registros
                (se usa la diferencia real de días para no asumir periodicidad diaria exacta).
     4. Genera columna max_horizonte con el mayor horizonte calculado en cada fila.
-    5. Guarda en data/processed/fics_rentabilidades_latest.parquet y una
-               copia con timestamp.
+    5. Guarda tres archivos en data/processed/:
+         a. fics_rentabilidades_latest.parquet        — tabla ancha completa (original)
+         b. fics_rentabilidades_largo_latest.parquet  — claves + fecha + rentabilidades
+                                                         en formato LARGO (una fila por
+                                                         horizonte)
+         c. fics_metricas_latest.parquet              — claves + fecha + métricas
+                                                         operativas + max_horizonte
 
 Horizontes calculados (en número de registros hacia atrás):
     30, 60, 120, 180, 360
@@ -54,7 +59,7 @@ ARCHIVO_ENTRADA  = RAW_DIR / "fics_alternativos_latest.parquet"
 ARCHIVO_SALIDA   = PROCESSED_DIR / "fics_rentabilidades_latest.parquet"
 
 # Horizontes en número de registros hacia atrás
-HORIZONTES: list[int] = [30, 60, 120, 180, 360]
+HORIZONTES: list[int] = [30, 60, 90, 120, 180, 360]
 
 # Clave de grupo para identificar cada serie de fondo/participación
 GRUPO_COLS = [
@@ -309,15 +314,6 @@ def calcular_max_horizonte(df: pd.DataFrame) -> pd.DataFrame:
         df["max_horizonte"] = 0
         return df
 
-    # Para cada fila, el mayor horizonte no-NaN
-    def _max_horizonte_fila(row: pd.Series) -> int:
-        max_h = 0
-        for n in HORIZONTES:
-            col = f"rent_ea_{n}d"
-            if col in row.index and pd.notna(row[col]):
-                max_h = n
-        return max_h
-
     df["max_horizonte"] = df[cols_presentes + []].apply(
         lambda row: max(
             (n for n in HORIZONTES if pd.notna(row.get(f"rent_ea_{n}d", np.nan))),
@@ -340,27 +336,152 @@ def calcular_max_horizonte(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Paso 6 — Persistencia
+# Paso 6 — Persistencia (tres salidas)
 # ---------------------------------------------------------------------------
 
-def save_processed(df: pd.DataFrame) -> Path:
+def _build_largo(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Guarda el DataFrame procesado en data/processed/:
-        - fics_rentabilidades_latest.parquet     → último run
-        - fics_rentabilidades_<timestamp>.parquet → trazabilidad
+    Convierte las columnas de rentabilidad EA de formato ancho a formato largo.
 
-    Sobreescribe completamente (mismo criterio que ingestion.py).
+    Entrada (ancho):
+        tipo_entidad | codigo_entidad | ... | fecha_corte | rent_ea_30d | rent_ea_60d | ...
+
+    Salida (largo):
+        tipo_entidad | codigo_entidad | ... | fecha_corte | horizonte_registros | horizonte_dias | rent_ea
+
+    Columnas de salida
+    ------------------
+    - Todas las columnas de GRUPO_COLS
+    - fecha_corte
+    - horizonte_registros (int)  : número de registros de lag (30, 60, 120, 180, 360)
+    - horizonte_dias (int)       : días calendario reales cubiertos por ese lag
+                                   (media del grupo en esa fecha; puede ser NaN si
+                                    la columna no existe en df)
+    - rent_ea (float)            : rentabilidad efectiva anual calculada
+
+    Solo se incluyen filas donde rent_ea no es NaN (es decir, donde había
+    suficiente historial para calcular ese horizonte).
     """
-    timestamp    = datetime.now().strftime("%Y%m%d_%H%M%S")
-    archivo_ts   = PROCESSED_DIR / f"fics_rentabilidades_{timestamp}.parquet"
-    archivo_lat  = PROCESSED_DIR / "fics_rentabilidades_latest.parquet"
+    cols_id   = GRUPO_COLS + ["fecha_corte"]
+    cols_rent = [f"rent_ea_{n}d" for n in HORIZONTES if f"rent_ea_{n}d" in df.columns]
 
-    df.to_parquet(archivo_ts,  index=False)
-    df.to_parquet(archivo_lat, index=False)
+    largo = df[cols_id + cols_rent].melt(
+        id_vars=cols_id,
+        value_vars=cols_rent,
+        var_name="horizonte_col",
+        value_name="rent_ea",
+    )
 
-    print(f"\nProcesado guardado en:        {archivo_ts}")
-    print(f"Archivo latest actualizado:   {archivo_lat}")
-    return archivo_lat
+    # Extraer número de registros de lag desde el nombre de la columna
+    # "rent_ea_30d" → 30
+    largo["horizonte_registros"] = (
+        largo["horizonte_col"]
+        .str.extract(r"rent_ea_(\d+)d")[0]
+        .astype(int)
+    )
+
+    largo = largo.drop(columns="horizonte_col")
+
+    # Descartar filas sin rentabilidad calculada
+    largo = largo.dropna(subset=["rent_ea"]).reset_index(drop=True)
+
+    # Ordenar de forma natural
+    largo = largo.sort_values(
+        GRUPO_COLS + ["fecha_corte", "horizonte_registros"]
+    ).reset_index(drop=True)
+
+    return largo
+
+
+def _build_metricas(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Construye la tabla de métricas operativas y flujo, sin las columnas de
+    rentabilidad EA.
+
+    Columnas de salida:
+        - GRUPO_COLS
+        - fecha_corte
+        - principal_compartimento
+        - valor_unidad_operaciones
+        - numero_unidades_fondo_cierre
+        - valor_fondo_cierre_dia_t
+        - numero_inversionistas
+        - rendimientos_abonados
+        - flujo_neto_inversionistas
+        - max_horizonte
+    """
+    cols_metricas = (
+        GRUPO_COLS
+        + ["fecha_corte", "principal_compartimento"]
+        + [c for c in COLS_METRICAS if c in df.columns]
+        + ["flujo_neto_inversionistas", "max_horizonte"]
+    )
+    cols_presentes = [c for c in cols_metricas if c in df.columns]
+    return df[cols_presentes].reset_index(drop=True)
+
+
+def save_processed(df: pd.DataFrame) -> dict[str, Path]:
+    """
+    Guarda tres artefactos en data/processed/:
+
+    1. fics_rentabilidades_latest.parquet
+       fics_rentabilidades_<timestamp>.parquet
+         → Tabla ancha completa (igual que antes, para compatibilidad).
+
+    2. fics_rentabilidades_largo_latest.parquet
+       fics_rentabilidades_largo_<timestamp>.parquet
+         → Claves de grupo + fecha_corte + horizonte_registros + rent_ea
+           en formato largo (solo filas con rent_ea no nulo).
+
+    3. fics_metricas_latest.parquet
+       fics_metricas_<timestamp>.parquet
+         → Claves de grupo + fecha_corte + métricas operativas +
+           flujo_neto_inversionistas + max_horizonte.
+
+    Retorna un dict con las rutas de los archivos "_latest" de cada salida.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # ── Salida 1: tabla ancha completa ──────────────────────────────────────
+    archivo_ancho_ts  = PROCESSED_DIR / f"fics_rentabilidades_{timestamp}.parquet"
+    archivo_ancho_lat = PROCESSED_DIR / "fics_rentabilidades_latest.parquet"
+    df.to_parquet(archivo_ancho_ts,  index=False)
+    df.to_parquet(archivo_ancho_lat, index=False)
+
+    # ── Salida 2: rentabilidades en formato largo ────────────────────────────
+    df_largo = _build_largo(df)
+    archivo_largo_ts  = PROCESSED_DIR / f"fics_rentabilidades_largo_{timestamp}.parquet"
+    archivo_largo_lat = PROCESSED_DIR / "fics_rentabilidades_largo_latest.parquet"
+    df_largo.to_parquet(archivo_largo_ts,  index=False)
+    df_largo.to_parquet(archivo_largo_lat, index=False)
+
+    # ── Salida 3: métricas operativas ────────────────────────────────────────
+    df_metricas = _build_metricas(df)
+    archivo_met_ts  = PROCESSED_DIR / f"fics_metricas_{timestamp}.parquet"
+    archivo_met_lat = PROCESSED_DIR / "fics_metricas_latest.parquet"
+    df_metricas.to_parquet(archivo_met_ts,  index=False)
+    df_metricas.to_parquet(archivo_met_lat, index=False)
+
+    # ── Resumen en consola ───────────────────────────────────────────────────
+    print(f"\nSalida 1 — tabla ancha:           {archivo_ancho_ts.name}")
+    print(f"                                  {archivo_ancho_lat.name}")
+    print(f"  Filas: {len(df):>10,}   Columnas: {len(df.columns)}")
+
+    print(f"\nSalida 2 — rentabilidades largo:  {archivo_largo_ts.name}")
+    print(f"                                  {archivo_largo_lat.name}")
+    print(f"  Filas: {len(df_largo):>10,}   Columnas: {len(df_largo.columns)}")
+    print(f"  Columnas: {list(df_largo.columns)}")
+
+    print(f"\nSalida 3 — métricas operativas:   {archivo_met_ts.name}")
+    print(f"                                  {archivo_met_lat.name}")
+    print(f"  Filas: {len(df_metricas):>10,}   Columnas: {len(df_metricas.columns)}")
+    print(f"  Columnas: {list(df_metricas.columns)}")
+
+    return {
+        "ancho":    archivo_ancho_lat,
+        "largo":    archivo_largo_lat,
+        "metricas": archivo_met_lat,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -399,7 +520,7 @@ def _print_resumen(df: pd.DataFrame) -> None:
 # Pipeline principal
 # ---------------------------------------------------------------------------
 
-def run_processing() -> pd.DataFrame:
+def run_processing() -> dict[str, pd.DataFrame]:
     """
     Pipeline completo de procesamiento de rentabilidades EA.
 
@@ -409,27 +530,36 @@ def run_processing() -> pd.DataFrame:
         3. Calcula flujo_neto_inversionistas y selecciona columnas de salida
         4. Calcula rentabilidades EA a 30, 60, 120, 180 y 360 registros de lag
         5. Agrega columna max_horizonte
-        6. Guarda en data/processed/
+        6. Guarda tres artefactos en data/processed/
 
     Retorna
     -------
-    pd.DataFrame con las siguientes columnas:
-        Claves   : tipo_entidad, codigo_entidad, codigo_negocio,
-                   tipo_participacion, fecha_corte, principal_compartimento
-        Métricas : valor_unidad_operaciones, numero_unidades_fondo_cierre,
-                   valor_fondo_cierre_dia_t, numero_inversionistas,
-                   rendimientos_abonados
-        Flujo    : flujo_neto_inversionistas
-                   (= aportes_recibidos - retiros_redenciones + anulaciones)
-        EA       : rent_ea_30d, rent_ea_60d, rent_ea_120d,
-                   rent_ea_180d, rent_ea_360d
-        Auxiliar : max_horizonte
+    dict con tres DataFrames:
+        {
+            "ancho":    pd.DataFrame,  — tabla ancha completa
+            "largo":    pd.DataFrame,  — rentabilidades en formato largo
+            "metricas": pd.DataFrame,  — métricas operativas + max_horizonte
+        }
+
+    Estructura de "largo":
+        tipo_entidad, codigo_entidad, codigo_negocio, tipo_participacion,
+        fecha_corte, horizonte_registros (int), rent_ea (float)
+
+    Estructura de "metricas":
+        tipo_entidad, codigo_entidad, codigo_negocio, tipo_participacion,
+        fecha_corte, principal_compartimento,
+        valor_unidad_operaciones, numero_unidades_fondo_cierre,
+        valor_fondo_cierre_dia_t, numero_inversionistas,
+        rendimientos_abonados, flujo_neto_inversionistas,
+        max_horizonte
 
     Ejemplo de uso desde la app Shiny
     ----------------------------------
     from processing import run_processing
 
-    df = run_processing()
+    resultados = run_processing()
+    df_largo    = resultados["largo"]
+    df_metricas = resultados["metricas"]
     """
     print("=" * 70)
     print("PROCESAMIENTO DE RENTABILIDADES EA — FICs")
@@ -453,13 +583,18 @@ def run_processing() -> pd.DataFrame:
     # 6. Resumen diagnóstico
     _print_resumen(df)
 
-    # 7. Guardar
-    save_processed(df)
+    # 7. Guardar tres salidas y obtener rutas
+    rutas = save_processed(df)
 
     print("\n✓ Procesamiento completado.")
     print("=" * 70)
 
-    return df
+    # Construir y retornar los tres DataFrames
+    return {
+        "ancho":    df,
+        "largo":    _build_largo(df),
+        "metricas": _build_metricas(df),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -468,7 +603,7 @@ def run_processing() -> pd.DataFrame:
 
 def load_processed() -> pd.DataFrame:
     """
-    Carga el parquet procesado desde data/processed/.
+    Carga la tabla ancha procesada desde data/processed/.
     Útil para que la app consuma los datos sin reejecutar el pipeline.
     """
     archivo = PROCESSED_DIR / "fics_rentabilidades_latest.parquet"
@@ -480,9 +615,46 @@ def load_processed() -> pd.DataFrame:
     return pd.read_parquet(archivo)
 
 
+def load_largo() -> pd.DataFrame:
+    """
+    Carga las rentabilidades en formato largo desde data/processed/.
+
+    Columnas: GRUPO_COLS + fecha_corte + horizonte_registros + rent_ea
+    """
+    archivo = PROCESSED_DIR / "fics_rentabilidades_largo_latest.parquet"
+    if not archivo.exists():
+        raise FileNotFoundError(
+            f"No se encontró {archivo}. "
+            "Ejecute run_processing() primero."
+        )
+    return pd.read_parquet(archivo)
+
+
+def load_metricas() -> pd.DataFrame:
+    """
+    Carga las métricas operativas desde data/processed/.
+
+    Columnas: GRUPO_COLS + fecha_corte + métricas + flujo + max_horizonte
+    """
+    archivo = PROCESSED_DIR / "fics_metricas_latest.parquet"
+    if not archivo.exists():
+        raise FileNotFoundError(
+            f"No se encontró {archivo}. "
+            "Ejecute run_processing() primero."
+        )
+    return pd.read_parquet(archivo)
+
+
 def processing_disponible() -> bool:
-    """Retorna True si el parquet procesado existe y está listo."""
-    return (PROCESSED_DIR / "fics_rentabilidades_latest.parquet").exists()
+    """Retorna True si todos los parquets procesados existen y están listos."""
+    return all(
+        (PROCESSED_DIR / f).exists()
+        for f in (
+            "fics_rentabilidades_latest.parquet",
+            "fics_rentabilidades_largo_latest.parquet",
+            "fics_metricas_latest.parquet",
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -490,18 +662,10 @@ def processing_disponible() -> bool:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    df_resultado = run_processing()
+    resultados = run_processing()
 
-    print("\nMuestra de columnas de rentabilidad (primeras 5 filas con algún valor):")
-    cols_mostrar = (
-        GRUPO_COLS
-        + ["fecha_corte"]
-        + COLS_METRICAS
-        + ["flujo_neto_inversionistas"]
-        + [f"rent_ea_{n}d" for n in HORIZONTES]
-        + ["max_horizonte"]
-    )
-    cols_mostrar = [c for c in cols_mostrar if c in df_resultado.columns]
+    print("\n── Muestra tabla LARGO (primeras 10 filas) ──")
+    print(resultados["largo"].head(10).to_string(index=False))
 
-    muestra = df_resultado[df_resultado["max_horizonte"] > 0][cols_mostrar].head(5)
-    print(muestra.to_string(index=False))
+    print("\n── Muestra tabla MÉTRICAS (primeras 5 filas) ──")
+    print(resultados["metricas"].head(5).to_string(index=False))
