@@ -32,6 +32,7 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from vacuum import run_vacuum
 
 # ---------------------------------------------------------------------------
 # Constantes globales
@@ -324,6 +325,15 @@ def run_ingestion(fondos: list[dict[str, Any]]) -> pd.DataFrame:
 
     # 4. Sobreescribir parquet (total, no incremental)
     save_parquet(df_clean)
+
+    # 4b. Limpiar históricos antiguos (automático)
+    print("\n🧹 Ejecutando limpieza de históricos...")
+    resultado_vacuum = run_vacuum(
+        days_retention=7,
+        dry_run=False,
+        verbose=False  # ← Sin prints para no contaminar output
+    )
+    print(f"   {resultado_vacuum['mensaje_ui']}")
 
     # 5. Resumen por fondo / participación
     print("\nResumen de la descarga:")

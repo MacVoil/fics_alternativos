@@ -1,30 +1,25 @@
 """
 processing.py
 -------------
-Calcula rentabilidades efectivas anuales (EA) para cada registro de la
-tabla de hechos de Fondos de Inversión Colectiva (FICs), a partir del
+Calcula la rentabilidad diaria (respecto al día anterior) para cada registro
+de la tabla de hechos de Fondos de Inversión Colectiva (FICs), a partir del
 valor_unidad_operaciones descargado por ingestion.py.
 
 Pasos del pipeline:
     1. Carga  data/raw/fics_alternativos_latest.parquet
     2. Filtra: por cada grupo (tipo_entidad, codigo_entidad, codigo_negocio,
                tipo_participacion) conserva solo el menor principal_compartimento.
-    3. Calcula rentabilidades EA usando lag por posición (no por fecha
-               calendario):
-                   rent_ea_Nd = (VU_hoy / VU[pos - N]) ^ (365 / dias_reales) - 1
-               donde dias_reales = fecha_corte_hoy - fecha_corte_hace_N_registros
-               (se usa la diferencia real de días para no asumir periodicidad diaria exacta).
-    4. Genera columna max_horizonte con el mayor horizonte calculado en cada fila.
-    5. Guarda tres archivos en data/processed/:
-         a. fics_rentabilidades_latest.parquet        — tabla ancha completa (original)
-         b. fics_rentabilidades_largo_latest.parquet  — claves + fecha + rentabilidades
-                                                         en formato LARGO (una fila por
-                                                         horizonte)
-         c. fics_metricas_latest.parquet              — claves + fecha + métricas
-                                                         operativas + max_horizonte
-
-Horizontes calculados (en número de registros hacia atrás):
-    30, 60, 120, 180, 360
+    3. Calcula flujo_neto_inversionistas y selecciona columnas de salida.
+    4. Calcula rentabilidad diaria usando lag de 1 registro (día anterior):
+                   rent_diaria = (VU_hoy / VU_ayer) ^ (365 / dias_reales) - 1
+               donde dias_reales = diferencia de días entre hoy y ayer
+    5. Filtra registros donde rent_diaria es NaN (típicamente el primer registro
+               de cada fondo/participación donde no hay día anterior).
+    6. Marca festivos y fines de semana para Colombia y EE.UU. en dos columnas
+               binarias (0 = día hábil normal, 1 = fin de semana o festivo).
+    7. Guarda un único archivo en data/processed/:
+         - fics_rentabilidades_latest.parquet  — tabla con claves, métricas,
+                                                  rentabilidad diaria y festivos
 
 Columnas de métricas conservadas en la salida:
     valor_unidad_operaciones, numero_unidades_fondo_cierre,
@@ -34,18 +29,21 @@ Columna calculada de flujo:
     flujo_neto_inversionistas = aportes_recibidos - retiros_redenciones + anulaciones
     (las tres columnas fuente se descartan de la salida final)
 
-Columnas de rentabilidad resultantes (formato ancho):
-    rent_ea_30d, rent_ea_60d, rent_ea_120d, rent_ea_180d, rent_ea_360d
+Columna de rentabilidad resultante:
+    rent_diaria — rentabilidad efectiva anual del cambio de valor_unidad_operaciones
+                  respecto al día anterior (sin valores NaN)
 
-Columna auxiliar:
-    max_horizonte  →  entero con el mayor N para el que pudo calcularse la
-                      rentabilidad en esa fila (0 si ninguno fue posible).
+Columnas de marcado:
+    is_holiday_or_weekend_co — 1 si es fin de semana (sábado, domingo) o festivo colombiano
+    is_holiday_or_weekend_us — 1 si es fin de semana (sábado, domingo) o festivo de EE.UU.
 """
 
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from pathlib import Path
+import holidays
+from vacuum import run_vacuum
 
 # ---------------------------------------------------------------------------
 # Constantes
@@ -58,8 +56,8 @@ PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 ARCHIVO_ENTRADA  = RAW_DIR / "fics_alternativos_latest.parquet"
 ARCHIVO_SALIDA   = PROCESSED_DIR / "fics_rentabilidades_latest.parquet"
 
-# Horizontes en número de registros hacia atrás
-HORIZONTES: list[int] = [30, 60, 90, 120, 180, 360]
+# Lag para calcular rentabilidad diaria (1 registro = 1 día anterior)
+LAG_DIARIO: int = 1
 
 # Clave de grupo para identificar cada serie de fondo/participación
 GRUPO_COLS = [
@@ -205,34 +203,32 @@ def calcular_flujo_y_seleccionar_columnas(df: pd.DataFrame) -> pd.DataFrame:
 # Paso 4 — Cálculo de rentabilidades EA por lag de posición
 # ---------------------------------------------------------------------------
 
-def _calcular_rent_ea(
+def _calcular_rent_diaria(
     vu: pd.Series,
     fechas: pd.Series,
-    n: int,
 ) -> pd.Series:
     """
-    Calcula la rentabilidad efectiva anual para un lag de N registros.
+    Calcula la rentabilidad diaria (respecto al día anterior).
 
     Fórmula:
-        rent_ea = (VU_hoy / VU[pos - N]) ^ (365 / dias_reales) - 1
+        rent_diaria = (VU_hoy / VU_ayer) ^ (365 / dias_reales) - 1
 
-    donde dias_reales es la diferencia calendario entre la fecha del
-    registro actual y la fecha del registro en la posición pos - N.
+    donde dias_reales es la diferencia calendario entre la fecha actual
+    y la fecha del día anterior.
 
     Parámetros
     ----------
     vu     : pd.Series  — valor_unidad_operaciones, ya ordenado por fecha
     fechas : pd.Series  — fecha_corte correspondiente a cada VU
-    n      : int        — número de registros hacia atrás (lag)
 
     Retorna
     -------
-    pd.Series de float con la rentabilidad EA (NaN donde no hay suficiente historial).
+    pd.Series de float con la rentabilidad diaria (NaN donde no hay día anterior).
     """
-    vu_lag     = vu.shift(n)
-    fechas_lag = fechas.shift(n)
+    vu_lag     = vu.shift(LAG_DIARIO)
+    fechas_lag = fechas.shift(LAG_DIARIO)
 
-    # Días reales entre la fecha actual y la fecha del registro lagged
+    # Días reales entre la fecha actual y la fecha del día anterior
     dias_reales = (fechas - fechas_lag).dt.days
 
     # Evitar divisiones por cero o negativos (datos desordenados o duplicados)
@@ -246,14 +242,13 @@ def _calcular_rent_ea(
 
 def calcular_rentabilidades(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Calcula, para cada fila del DataFrame, las rentabilidades EA a 30, 60,
-    120, 180 y 360 registros de lag.
+    Calcula la rentabilidad diaria (respecto al día anterior) para cada fila.
 
     Requiere que df esté ordenado por (GRUPO_COLS + fecha_corte), que es
     el orden natural producido por clean_dataframe() en ingestion.py.
 
-    Las columnas nuevas son:
-        rent_ea_30d, rent_ea_60d, rent_ea_120d, rent_ea_180d, rent_ea_360d
+    La nueva columna es:
+        rent_diaria — rentabilidad efectiva anual del cambio diario
 
     El cálculo se hace por grupo para evitar que el lag "cruce" entre
     fondos distintos.
@@ -266,222 +261,124 @@ def calcular_rentabilidades(df: pd.DataFrame) -> pd.DataFrame:
     # Asegurar orden correcto antes del lag
     df = df.sort_values(GRUPO_COLS + ["fecha_corte"]).reset_index(drop=True)
 
-    # Inicializar columnas de rentabilidad con NaN
-    for n in HORIZONTES:
-        df[f"rent_ea_{n}d"] = np.nan
+    # Inicializar columna de rentabilidad con NaN
+    df["rent_diaria"] = np.nan
 
     # Calcular por grupo para que el lag no "sangre" entre fondos distintos
     grupos = df.groupby(GRUPO_COLS, sort=False)
     total_grupos = grupos.ngroups
-    print(f"\nCalculando rentabilidades EA para {total_grupos} grupo(s)...")
+    print(f"\nCalculando rentabilidades diarias para {total_grupos} grupo(s)...")
 
     for nombre_grupo, idx in grupos.groups.items():
         sub = df.loc[idx].copy()
 
-        for n in HORIZONTES:
-            col = f"rent_ea_{n}d"
-            sub[col] = _calcular_rent_ea(
-                vu=sub["valor_unidad_operaciones"].reset_index(drop=True),
-                fechas=sub["fecha_corte"].reset_index(drop=True),
-                n=n,
-            ).values  # .values para respetar el índice original al asignar
+        sub["rent_diaria"] = _calcular_rent_diaria(
+            vu=sub["valor_unidad_operaciones"].reset_index(drop=True),
+            fechas=sub["fecha_corte"].reset_index(drop=True),
+        ).values
 
-            df.loc[idx, col] = sub[col].values
+        df.loc[idx, "rent_diaria"] = sub["rent_diaria"].values
 
     return df
 
 
+
+
 # ---------------------------------------------------------------------------
-# Paso 5 — Columna max_horizonte
+# Paso 5 — Filtro de NaN en rent_diaria
 # ---------------------------------------------------------------------------
 
-def calcular_max_horizonte(df: pd.DataFrame) -> pd.DataFrame:
+def filter_na_rentabilidades(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Agrega la columna max_horizonte: el mayor N (en días de lag) para el
-    que se pudo calcular la rentabilidad EA en cada fila.
-
-    Valor 0 indica que ningún horizonte pudo calcularse (fondo con muy
-    pocos registros o VU nulos).
-
-    Ejemplo:
-        Si rent_ea_30d y rent_ea_60d tienen valor pero rent_ea_120d es NaN,
-        entonces max_horizonte = 60.
+    Elimina los registros donde rent_diaria es NaN.
+    Habitualmente estos son el primer registro de cada fondo/participación
+    (donde no hay datos del día anterior para calcular la rentabilidad).
+    
+    Retorna el DataFrame filtrado.
     """
-    cols_rent = [f"rent_ea_{n}d" for n in HORIZONTES]
-    cols_presentes = [c for c in cols_rent if c in df.columns]
+    antes = len(df)
+    df = df.dropna(subset=["rent_diaria"]).reset_index(drop=True)
+    despues = len(df)
+    eliminados = antes - despues
+    
+    if eliminados:
+        print(f"\nFiltro rent_diaria: {eliminados:,} registros con NaN eliminados.")
+    else:
+        print("\nFiltro rent_diaria: todos los registros tienen rent_diaria válida.")
+    
+    return df
 
-    if not cols_presentes:
-        df["max_horizonte"] = 0
+
+def marcar_festivos_y_fines_de_semana(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Agrega dos columnas binarias para identificar fines de semana y festivos:
+    
+    - is_holiday_or_weekend_co: 1 si es sábado, domingo o festivo en Colombia; 0 si no
+    - is_holiday_or_weekend_us: 1 si es sábado, domingo o festivo en EE.UU.; 0 si no
+    
+    Útil para análisis posterior: fines de semana y festivos tienen volatilidad diferente.
+    
+    Retorna el DataFrame con las dos nuevas columnas.
+    """
+    df = df.copy()
+    
+    # Obtener calendarios de festivos para ambos países
+    # Se cubre el rango de fechas presentes en los datos
+    if df.empty:
         return df
-
-    df["max_horizonte"] = df[cols_presentes + []].apply(
-        lambda row: max(
-            (n for n in HORIZONTES if pd.notna(row.get(f"rent_ea_{n}d", np.nan))),
-            default=0,
-        ),
-        axis=1,
+    
+    fecha_min = df["fecha_corte"].min()
+    fecha_max = df["fecha_corte"].max()
+    
+    # Crear conjuntos de festivos para cada país
+    holidays_co = holidays.Colombia(years=range(fecha_min.year, fecha_max.year + 1))
+    holidays_us = holidays.US(years=range(fecha_min.year, fecha_max.year + 1))
+    
+    # Crear columnas binarias
+    # weekday() retorna 0-6 donde 5=sábado, 6=domingo
+    df["is_holiday_or_weekend_co"] = df["fecha_corte"].apply(
+        lambda fecha: 1 if (fecha.weekday() >= 5 or fecha in holidays_co) else 0
     )
-
-    # Resumen por grupo
-    resumen = (
-        df.groupby(GRUPO_COLS)["max_horizonte"]
-        .max()
-        .reset_index()
-        .rename(columns={"max_horizonte": "max_horizonte_grupo"})
+    
+    df["is_holiday_or_weekend_us"] = df["fecha_corte"].apply(
+        lambda fecha: 1 if (fecha.weekday() >= 5 or fecha in holidays_us) else 0
     )
-    print("\nMáximo horizonte calculable por grupo:")
-    print(resumen.to_string(index=False))
-
+    
+    co_holidays_count = df["is_holiday_or_weekend_co"].sum()
+    us_holidays_count = df["is_holiday_or_weekend_us"].sum()
+    
+    print(f"\nMarcado de festivos y fines de semana:")
+    print(f"  Registros en festivos/fines de semana Colombia: {co_holidays_count:,}")
+    print(f"  Registros en festivos/fines de semana EE.UU.:  {us_holidays_count:,}")
+    
     return df
 
 
-# ---------------------------------------------------------------------------
-# Paso 6 — Persistencia (tres salidas)
-# ---------------------------------------------------------------------------
-
-def _build_largo(df: pd.DataFrame) -> pd.DataFrame:
+def save_processed(df: pd.DataFrame) -> Path:
     """
-    Convierte las columnas de rentabilidad EA de formato ancho a formato largo.
+    Guarda un único artefacto en data/processed/:
 
-    Entrada (ancho):
-        tipo_entidad | codigo_entidad | ... | fecha_corte | rent_ea_30d | rent_ea_60d | ...
+    - fics_rentabilidades_latest.parquet
+      fics_rentabilidades_<timestamp>.parquet
+        → Tabla con claves de grupo, fecha_corte, métricas operativas,
+          flujo_neto_inversionistas y rent_diaria.
 
-    Salida (largo):
-        tipo_entidad | codigo_entidad | ... | fecha_corte | horizonte_registros | horizonte_dias | rent_ea
-
-    Columnas de salida
-    ------------------
-    - Todas las columnas de GRUPO_COLS
-    - fecha_corte
-    - horizonte_registros (int)  : número de registros de lag (30, 60, 120, 180, 360)
-    - horizonte_dias (int)       : días calendario reales cubiertos por ese lag
-                                   (media del grupo en esa fecha; puede ser NaN si
-                                    la columna no existe en df)
-    - rent_ea (float)            : rentabilidad efectiva anual calculada
-
-    Solo se incluyen filas donde rent_ea no es NaN (es decir, donde había
-    suficiente historial para calcular ese horizonte).
-    """
-    cols_id   = GRUPO_COLS + ["fecha_corte"]
-    cols_rent = [f"rent_ea_{n}d" for n in HORIZONTES if f"rent_ea_{n}d" in df.columns]
-
-    largo = df[cols_id + cols_rent].melt(
-        id_vars=cols_id,
-        value_vars=cols_rent,
-        var_name="horizonte_col",
-        value_name="rent_ea",
-    )
-
-    # Extraer número de registros de lag desde el nombre de la columna
-    # "rent_ea_30d" → 30
-    largo["horizonte_registros"] = (
-        largo["horizonte_col"]
-        .str.extract(r"rent_ea_(\d+)d")[0]
-        .astype(int)
-    )
-
-    largo = largo.drop(columns="horizonte_col")
-
-    # Descartar filas sin rentabilidad calculada
-    largo = largo.dropna(subset=["rent_ea"]).reset_index(drop=True)
-
-    # Ordenar de forma natural
-    largo = largo.sort_values(
-        GRUPO_COLS + ["fecha_corte", "horizonte_registros"]
-    ).reset_index(drop=True)
-
-    return largo
-
-
-def _build_metricas(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Construye la tabla de métricas operativas y flujo, sin las columnas de
-    rentabilidad EA.
-
-    Columnas de salida:
-        - GRUPO_COLS
-        - fecha_corte
-        - principal_compartimento
-        - valor_unidad_operaciones
-        - numero_unidades_fondo_cierre
-        - valor_fondo_cierre_dia_t
-        - numero_inversionistas
-        - rendimientos_abonados
-        - flujo_neto_inversionistas
-        - max_horizonte
-    """
-    cols_metricas = (
-        GRUPO_COLS
-        + ["fecha_corte", "principal_compartimento"]
-        + [c for c in COLS_METRICAS if c in df.columns]
-        + ["flujo_neto_inversionistas", "max_horizonte"]
-    )
-    cols_presentes = [c for c in cols_metricas if c in df.columns]
-    return df[cols_presentes].reset_index(drop=True)
-
-
-def save_processed(df: pd.DataFrame) -> dict[str, Path]:
-    """
-    Guarda tres artefactos en data/processed/:
-
-    1. fics_rentabilidades_latest.parquet
-       fics_rentabilidades_<timestamp>.parquet
-         → Tabla ancha completa (igual que antes, para compatibilidad).
-
-    2. fics_rentabilidades_largo_latest.parquet
-       fics_rentabilidades_largo_<timestamp>.parquet
-         → Claves de grupo + fecha_corte + horizonte_registros + rent_ea
-           en formato largo (solo filas con rent_ea no nulo).
-
-    3. fics_metricas_latest.parquet
-       fics_metricas_<timestamp>.parquet
-         → Claves de grupo + fecha_corte + métricas operativas +
-           flujo_neto_inversionistas + max_horizonte.
-
-    Retorna un dict con las rutas de los archivos "_latest" de cada salida.
+    Retorna la ruta del archivo "_latest".
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    # ── Salida 1: tabla ancha completa ──────────────────────────────────────
-    archivo_ancho_ts  = PROCESSED_DIR / f"fics_rentabilidades_{timestamp}.parquet"
-    archivo_ancho_lat = PROCESSED_DIR / "fics_rentabilidades_latest.parquet"
-    df.to_parquet(archivo_ancho_ts,  index=False)
-    df.to_parquet(archivo_ancho_lat, index=False)
+    archivo_ts  = PROCESSED_DIR / f"fics_rentabilidades_{timestamp}.parquet"
+    archivo_lat = PROCESSED_DIR / "fics_rentabilidades_latest.parquet"
 
-    # ── Salida 2: rentabilidades en formato largo ────────────────────────────
-    df_largo = _build_largo(df)
-    archivo_largo_ts  = PROCESSED_DIR / f"fics_rentabilidades_largo_{timestamp}.parquet"
-    archivo_largo_lat = PROCESSED_DIR / "fics_rentabilidades_largo_latest.parquet"
-    df_largo.to_parquet(archivo_largo_ts,  index=False)
-    df_largo.to_parquet(archivo_largo_lat, index=False)
+    df.to_parquet(archivo_ts,  index=False)
+    df.to_parquet(archivo_lat, index=False)
 
-    # ── Salida 3: métricas operativas ────────────────────────────────────────
-    df_metricas = _build_metricas(df)
-    archivo_met_ts  = PROCESSED_DIR / f"fics_metricas_{timestamp}.parquet"
-    archivo_met_lat = PROCESSED_DIR / "fics_metricas_latest.parquet"
-    df_metricas.to_parquet(archivo_met_ts,  index=False)
-    df_metricas.to_parquet(archivo_met_lat, index=False)
-
-    # ── Resumen en consola ───────────────────────────────────────────────────
-    print(f"\nSalida 1 — tabla ancha:           {archivo_ancho_ts.name}")
-    print(f"                                  {archivo_ancho_lat.name}")
+    print(f"\nSalida guardada:         {archivo_ts.name}")
+    print(f"                         {archivo_lat.name}")
     print(f"  Filas: {len(df):>10,}   Columnas: {len(df.columns)}")
+    print(f"  Columnas: {list(df.columns)}")
 
-    print(f"\nSalida 2 — rentabilidades largo:  {archivo_largo_ts.name}")
-    print(f"                                  {archivo_largo_lat.name}")
-    print(f"  Filas: {len(df_largo):>10,}   Columnas: {len(df_largo.columns)}")
-    print(f"  Columnas: {list(df_largo.columns)}")
-
-    print(f"\nSalida 3 — métricas operativas:   {archivo_met_ts.name}")
-    print(f"                                  {archivo_met_lat.name}")
-    print(f"  Filas: {len(df_metricas):>10,}   Columnas: {len(df_metricas.columns)}")
-    print(f"  Columnas: {list(df_metricas.columns)}")
-
-    return {
-        "ancho":    archivo_ancho_lat,
-        "largo":    archivo_largo_lat,
-        "metricas": archivo_met_lat,
-    }
+    return archivo_lat
 
 
 # ---------------------------------------------------------------------------
@@ -489,8 +386,7 @@ def save_processed(df: pd.DataFrame) -> dict[str, Path]:
 # ---------------------------------------------------------------------------
 
 def _print_resumen(df: pd.DataFrame) -> None:
-    """Imprime un resumen por grupo con conteos y cobertura de horizontes."""
-    cols_rent = [f"rent_ea_{n}d" for n in HORIZONTES]
+    """Imprime un resumen por grupo con conteos y cobertura de rentabilidad diaria."""
 
     resumen_rows = []
     for nombre, sub in df.groupby(GRUPO_COLS):
@@ -498,14 +394,12 @@ def _print_resumen(df: pd.DataFrame) -> None:
             "tipo_entidad":      nombre[0],
             "codigo_entidad":    nombre[1],
             "codigo_negocio":    nombre[2],
-            "tipo_participacion":nombre[3],
+            "tipo_participacion": nombre[3],
             "registros":         len(sub),
             "fecha_inicio":      sub["fecha_corte"].min().date(),
             "fecha_fin":         sub["fecha_corte"].max().date(),
+            "rent_diaria_ok":    sub["rent_diaria"].notna().sum() if "rent_diaria" in sub.columns else 0,
         }
-        for col in cols_rent:
-            if col in sub.columns:
-                fila[col + "_ok"] = sub[col].notna().sum()
         resumen_rows.append(fila)
 
     resumen = pd.DataFrame(resumen_rows)
@@ -520,49 +414,46 @@ def _print_resumen(df: pd.DataFrame) -> None:
 # Pipeline principal
 # ---------------------------------------------------------------------------
 
-def run_processing() -> dict[str, pd.DataFrame]:
+def run_processing() -> pd.DataFrame:
     """
-    Pipeline completo de procesamiento de rentabilidades EA.
+    Pipeline completo de procesamiento de rentabilidades diarias.
 
     Flujo:
         1. Carga data/raw/fics_alternativos_latest.parquet
         2. Filtra al menor principal_compartimento por grupo
         3. Calcula flujo_neto_inversionistas y selecciona columnas de salida
-        4. Calcula rentabilidades EA a 30, 60, 120, 180 y 360 registros de lag
-        5. Agrega columna max_horizonte
-        6. Guarda tres artefactos en data/processed/
+        4. Calcula rentabilidad diaria (respecto al día anterior)
+        5. Filtra registros sin rentabilidad calculada (NaN)
+        6. Marca festivos y fines de semana (Colombia y EE.UU.)
+        7. Guarda un único artefacto en data/processed/
 
     Retorna
     -------
-    dict con tres DataFrames:
-        {
-            "ancho":    pd.DataFrame,  — tabla ancha completa
-            "largo":    pd.DataFrame,  — rentabilidades en formato largo
-            "metricas": pd.DataFrame,  — métricas operativas + max_horizonte
-        }
+    pd.DataFrame con todas las columnas: claves, fecha_corte, métricas,
+    flujo_neto_inversionistas, rent_diaria (sin NaN), y marcas de festivos.
 
-    Estructura de "largo":
-        tipo_entidad, codigo_entidad, codigo_negocio, tipo_participacion,
-        fecha_corte, horizonte_registros (int), rent_ea (float)
-
-    Estructura de "metricas":
-        tipo_entidad, codigo_entidad, codigo_negocio, tipo_participacion,
-        fecha_corte, principal_compartimento,
-        valor_unidad_operaciones, numero_unidades_fondo_cierre,
-        valor_fondo_cierre_dia_t, numero_inversionistas,
-        rendimientos_abonados, flujo_neto_inversionistas,
-        max_horizonte
+    Columnas de salida:
+        - tipo_entidad, codigo_entidad, codigo_negocio, tipo_participacion
+        - fecha_corte
+        - principal_compartimento
+        - valor_unidad_operaciones
+        - numero_unidades_fondo_cierre
+        - valor_fondo_cierre_dia_t
+        - numero_inversionistas
+        - rendimientos_abonados
+        - flujo_neto_inversionistas
+        - rent_diaria (sin valores NaN)
+        - is_holiday_or_weekend_co (1 si es fin de semana o festivo en Colombia)
+        - is_holiday_or_weekend_us (1 si es fin de semana o festivo en EE.UU.)
 
     Ejemplo de uso desde la app Shiny
     ----------------------------------
     from processing import run_processing
 
-    resultados = run_processing()
-    df_largo    = resultados["largo"]
-    df_metricas = resultados["metricas"]
+    df = run_processing()
     """
     print("=" * 70)
-    print("PROCESAMIENTO DE RENTABILIDADES EA — FICs")
+    print("PROCESAMIENTO DE RENTABILIDADES DIARIAS — FICs")
     print("=" * 70)
 
     # 1. Cargar hechos crudos
@@ -574,27 +465,34 @@ def run_processing() -> dict[str, pd.DataFrame]:
     # 3. Calcular flujo_neto_inversionistas y seleccionar columnas
     df = calcular_flujo_y_seleccionar_columnas(df)
 
-    # 4. Calcular rentabilidades EA por lag de posición
+    # 4. Calcular rentabilidades diarias
     df = calcular_rentabilidades(df)
 
-    # 5. Columna max_horizonte
-    df = calcular_max_horizonte(df)
+    # 5. Filtrar registros sin rentabilidad calculada (NaN)
+    df = filter_na_rentabilidades(df)
 
-    # 6. Resumen diagnóstico
+    # 6. Marcar festivos y fines de semana
+    df = marcar_festivos_y_fines_de_semana(df)
+
+    # 7. Resumen diagnóstico
     _print_resumen(df)
 
-    # 7. Guardar tres salidas y obtener rutas
-    rutas = save_processed(df)
+    # 8. Guardar salida única
+    save_processed(df)
+
+    # 9. Limpiar históricos antiguos (automático)
+    print("\n🧹 Ejecutando limpieza de históricos...")
+    resultado_vacuum = run_vacuum(
+        days_retention=7,
+        dry_run=False,
+        verbose=False  # ← Sin prints para no contaminar output
+    )
+    print(f"   {resultado_vacuum['mensaje_ui']}")
 
     print("\n✓ Procesamiento completado.")
     print("=" * 70)
 
-    # Construir y retornar los tres DataFrames
-    return {
-        "ancho":    df,
-        "largo":    _build_largo(df),
-        "metricas": _build_metricas(df),
-    }
+    return df
 
 
 # ---------------------------------------------------------------------------
@@ -603,8 +501,10 @@ def run_processing() -> dict[str, pd.DataFrame]:
 
 def load_processed() -> pd.DataFrame:
     """
-    Carga la tabla ancha procesada desde data/processed/.
+    Carga la tabla procesada desde data/processed/.
     Útil para que la app consuma los datos sin reejecutar el pipeline.
+    
+    Retorna un DataFrame con claves, fecha_corte, métricas, flujo e rent_diaria.
     """
     archivo = PROCESSED_DIR / "fics_rentabilidades_latest.parquet"
     if not archivo.exists():
@@ -615,57 +515,18 @@ def load_processed() -> pd.DataFrame:
     return pd.read_parquet(archivo)
 
 
-def load_largo() -> pd.DataFrame:
-    """
-    Carga las rentabilidades en formato largo desde data/processed/.
-
-    Columnas: GRUPO_COLS + fecha_corte + horizonte_registros + rent_ea
-    """
-    archivo = PROCESSED_DIR / "fics_rentabilidades_largo_latest.parquet"
-    if not archivo.exists():
-        raise FileNotFoundError(
-            f"No se encontró {archivo}. "
-            "Ejecute run_processing() primero."
-        )
-    return pd.read_parquet(archivo)
-
-
-def load_metricas() -> pd.DataFrame:
-    """
-    Carga las métricas operativas desde data/processed/.
-
-    Columnas: GRUPO_COLS + fecha_corte + métricas + flujo + max_horizonte
-    """
-    archivo = PROCESSED_DIR / "fics_metricas_latest.parquet"
-    if not archivo.exists():
-        raise FileNotFoundError(
-            f"No se encontró {archivo}. "
-            "Ejecute run_processing() primero."
-        )
-    return pd.read_parquet(archivo)
-
-
-def processing_disponible() -> bool:
-    """Retorna True si todos los parquets procesados existen y están listos."""
-    return all(
-        (PROCESSED_DIR / f).exists()
-        for f in (
-            "fics_rentabilidades_latest.parquet",
-            "fics_rentabilidades_largo_latest.parquet",
-            "fics_metricas_latest.parquet",
-        )
-    )
-
-
 # ---------------------------------------------------------------------------
 # Entry point para pruebas locales
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    resultados = run_processing()
+    df = run_processing()
 
-    print("\n── Muestra tabla LARGO (primeras 10 filas) ──")
-    print(resultados["largo"].head(10).to_string(index=False))
+    print("\n── Primeras 10 filas de la tabla procesada ──")
+    print(df.head(10).to_string(index=False))
 
-    print("\n── Muestra tabla MÉTRICAS (primeras 5 filas) ──")
-    print(resultados["metricas"].head(5).to_string(index=False))
+    print("\n── Estadísticas de rent_diaria ──")
+    if "rent_diaria" in df.columns:
+        print(df["rent_diaria"].describe())
+    else:
+        print("⚠ Columna 'rent_diaria' no encontrada.")
