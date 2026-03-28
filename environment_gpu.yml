@@ -1,0 +1,19 @@
+name: autogluon_gpu_py311
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pytorch::pytorch
+  - pytorch::pytorch-cuda=13.1
+  - pip
+  - numpy
+  - pandas
+  - jupyter
+  - notebook
+  - pip:
+    - autogluon
+    - holidays
+    - pyarrow

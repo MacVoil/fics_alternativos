@@ -113,7 +113,7 @@ fics_alternativos/
 - **Paso 1 — Carga**: carga los hechos crudos
 - **Paso 2 — Filtro compartimento**: por cada grupo `(tipo_entidad, codigo_entidad, codigo_negocio, tipo_participacion)` conserva solo el menor `principal_compartimento` (aplica principalmente a casos edge con múltiples compartimentos)
 - **Paso 3 — Flujo y métricas**: calcula `flujo_neto_inversionistas = aportes_recibidos - retiros_redenciones + anulaciones` y selecciona columnas de salida
-- **Paso 4 — Rentabilidad diaria**: calcula la rentabilidad efectiva anual respecto al día anterior usando: `rent_diaria = (VU_hoy / VU_ayer) ^ (365 / dias_reales) - 1` donde `dias_reales` es la diferencia calendario real
+- **Paso 4 — Rentabilidad diaria**: calcula el ratio diario respecto al día anterior usando: `rent_diaria = VU_hoy / VU_ayer`
 - **Paso 5 — Filtro NaN**: elimina registros donde `rent_diaria` es NaN (típicamente el primer registro de cada fondo/participación)
 - **Paso 6 — Festividades y fines de semana** (NEW): marca registros que caen en fechas festivas o fines de semana para Colombia y EE.UU., agregando columnas `is_holiday_or_weekend_co` e `is_holiday_or_weekend_us`
 - **Paso 7 — Persistencia**: guarda resultado único en `data/processed/fics_rentabilidades_latest.parquet` + copia con timestamp
@@ -172,7 +172,7 @@ fics_alternativos/
 - Se usan archivos Parquet como almacenamiento principal por rendimiento y simplicidad (sin base de datos).
 - Cada corrida de ingesta genera un archivo con timestamp + sobreescribe el `_latest` para trazabilidad.
 - El procesamiento de rentabilidades se calcula a partir del `valor_unidad_operaciones` usando lag de 1 registro (día anterior), garantizando control total del cálculo y evitando las rentabilidades precalculadas de la API.
-- La rentabilidad diaria se annualiza con la fórmula: `(VU_hoy / VU_ayer) ^ (365 / dias_reales) - 1` donde `dias_reales` es la diferencia calendario real entre fechas.
+- La rentabilidad diaria se calcula como el ratio simple: `rent_diaria = VU_hoy / VU_ayer`.
 - Se eliminan los primeros registros de cada serie (`rent_diaria = NaN`) ya que no hay datos del día anterior para calcularla.
 - El filtro de `principal_compartimento` conserva el valor mínimo por grupo para casos edge con múltiples compartimentos (99.99% de los grupos tienen solo uno).
 - Future: AutoGluon se usará en modo TimeSeries para generar proyecciones de rentabilidades futuras.

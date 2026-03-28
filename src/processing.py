@@ -10,9 +10,8 @@ Pasos del pipeline:
     2. Filtra: por cada grupo (tipo_entidad, codigo_entidad, codigo_negocio,
                tipo_participacion) conserva solo el menor principal_compartimento.
     3. Calcula flujo_neto_inversionistas y selecciona columnas de salida.
-    4. Calcula rentabilidad diaria usando lag de 1 registro (día anterior):
-                   rent_diaria = (VU_hoy / VU_ayer) ^ (365 / dias_reales) - 1
-               donde dias_reales = diferencia de días entre hoy y ayer
+    4. Calcula ratio diario usando lag de 1 registro (día anterior):
+                   rent_diaria = VU_hoy / VU_ayer
     5. Filtra registros donde rent_diaria es NaN (típicamente el primer registro
                de cada fondo/participación donde no hay día anterior).
     6. Marca festivos y fines de semana para Colombia y EE.UU. en dos columnas
@@ -29,8 +28,8 @@ Columna calculada de flujo:
     flujo_neto_inversionistas = aportes_recibidos - retiros_redenciones + anulaciones
     (las tres columnas fuente se descartan de la salida final)
 
-Columna de rentabilidad resultante:
-    rent_diaria — rentabilidad efectiva anual del cambio de valor_unidad_operaciones
+Columna de ratio resultante:
+    rent_diaria — ratio diario del cambio de valor_unidad_operaciones
                   respecto al día anterior (sin valores NaN)
 
 Columnas de marcado:
@@ -208,13 +207,10 @@ def _calcular_rent_diaria(
     fechas: pd.Series,
 ) -> pd.Series:
     """
-    Calcula la rentabilidad diaria (respecto al día anterior).
+    Calcula el ratio diario (respecto al día anterior).
 
     Fórmula:
-        rent_diaria = (VU_hoy / VU_ayer) ^ (365 / dias_reales) - 1
-
-    donde dias_reales es la diferencia calendario entre la fecha actual
-    y la fecha del día anterior.
+        rent_diaria = VU_hoy / VU_ayer
 
     Parámetros
     ----------
@@ -223,7 +219,7 @@ def _calcular_rent_diaria(
 
     Retorna
     -------
-    pd.Series de float con la rentabilidad diaria (NaN donde no hay día anterior).
+    pd.Series de float con el ratio diario (NaN donde no hay día anterior).
     """
     vu_lag     = vu.shift(LAG_DIARIO)
     fechas_lag = fechas.shift(LAG_DIARIO)
@@ -235,20 +231,20 @@ def _calcular_rent_diaria(
     valid = (vu_lag > 0) & (dias_reales > 0)
 
     rent = pd.Series(np.nan, index=vu.index)
-    rent[valid] = (vu[valid] / vu_lag[valid]) ** (365.0 / dias_reales[valid]) - 1
+    rent[valid] = vu[valid] / vu_lag[valid]
 
     return rent
 
 
 def calcular_rentabilidades(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Calcula la rentabilidad diaria (respecto al día anterior) para cada fila.
+    Calcula el ratio diario (respecto al día anterior) para cada fila.
 
     Requiere que df esté ordenado por (GRUPO_COLS + fecha_corte), que es
     el orden natural producido por clean_dataframe() en ingestion.py.
 
     La nueva columna es:
-        rent_diaria — rentabilidad efectiva anual del cambio diario
+        rent_diaria — ratio del cambio diario de valor unitario
 
     El cálculo se hace por grupo para evitar que el lag "cruce" entre
     fondos distintos.
