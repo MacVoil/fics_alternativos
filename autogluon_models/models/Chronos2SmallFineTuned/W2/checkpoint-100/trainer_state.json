@@ -1,6 +1,6 @@
 {
   "best_global_step": 100,
-  "best_metric": 1.2165123224258423,
+  "best_metric": 5.465104103088379,
   "best_model_checkpoint": "c:\\Users\\user\\Desktop\\Proyectos\\fics_alternativos\\autogluon_models\\models\\Chronos2SmallFineTuned\\W2\\checkpoint-100",
   "epoch": 0.1,
   "eval_steps": 100,
@@ -11,17 +11,17 @@
   "log_history": [
     {
       "epoch": 0.1,
-      "grad_norm": 20.466333389282227,
+      "grad_norm": 15.068940162658691,
       "learning_rate": 9.01e-06,
-      "loss": 9.8478,
+      "loss": 6.4366,
       "step": 100
     },
     {
       "epoch": 0.1,
-      "eval_loss": 1.2165123224258423,
-      "eval_runtime": 0.0277,
-      "eval_samples_per_second": 72.154,
-      "eval_steps_per_second": 36.077,
+      "eval_loss": 5.465104103088379,
+      "eval_runtime": 0.0445,
+      "eval_samples_per_second": 224.721,
+      "eval_steps_per_second": 22.472,
       "step": 100
     }
   ],

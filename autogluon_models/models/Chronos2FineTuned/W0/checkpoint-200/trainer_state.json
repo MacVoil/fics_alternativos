@@ -1,0 +1,64 @@
+{
+  "best_global_step": 200,
+  "best_metric": 2.8779125213623047,
+  "best_model_checkpoint": "c:\\Users\\user\\Desktop\\Proyectos\\fics_alternativos\\autogluon_models\\models\\Chronos2FineTuned\\W0\\checkpoint-200",
+  "epoch": 0.2,
+  "eval_steps": 100,
+  "global_step": 200,
+  "is_hyper_param_search": false,
+  "is_local_process_zero": true,
+  "is_world_process_zero": true,
+  "log_history": [
+    {
+      "epoch": 0.1,
+      "grad_norm": 21.82451057434082,
+      "learning_rate": 9.01e-06,
+      "loss": 19.697,
+      "step": 100
+    },
+    {
+      "epoch": 0.1,
+      "eval_loss": 2.9078478813171387,
+      "eval_runtime": 0.0218,
+      "eval_samples_per_second": 458.88,
+      "eval_steps_per_second": 45.888,
+      "step": 100
+    },
+    {
+      "epoch": 0.2,
+      "grad_norm": 19.635635375976562,
+      "learning_rate": 8.010000000000001e-06,
+      "loss": 16.7644,
+      "step": 200
+    },
+    {
+      "epoch": 0.2,
+      "eval_loss": 2.8779125213623047,
+      "eval_runtime": 0.0222,
+      "eval_samples_per_second": 450.139,
+      "eval_steps_per_second": 45.014,
+      "step": 200
+    }
+  ],
+  "logging_steps": 100,
+  "max_steps": 1000,
+  "num_input_tokens_seen": 0,
+  "num_train_epochs": 9223372036854775807,
+  "save_steps": 100,
+  "stateful_callbacks": {
+    "TrainerControl": {
+      "args": {
+        "should_epoch_stop": false,
+        "should_evaluate": false,
+        "should_log": false,
+        "should_save": true,
+        "should_training_stop": false
+      },
+      "attributes": {}
+    }
+  },
+  "total_flos": 0.0,
+  "train_batch_size": 32,
+  "trial_name": null,
+  "trial_params": null
+}

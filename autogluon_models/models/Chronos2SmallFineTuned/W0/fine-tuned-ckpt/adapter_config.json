@@ -28,11 +28,11 @@
   "rank_pattern": {},
   "revision": null,
   "target_modules": [
-    "self_attention.k",
-    "self_attention.o",
+    "self_attention.q",
     "output_patch_embedding.output_layer",
-    "self_attention.v",
-    "self_attention.q"
+    "self_attention.o",
+    "self_attention.k",
+    "self_attention.v"
   ],
   "target_parameters": null,
   "task_type": null,
