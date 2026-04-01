@@ -73,6 +73,7 @@ FORECASTS_DIR.mkdir(parents=True, exist_ok=True)
 
 ARCHIVO_ENTRADA = PROCESSED_DIR / "fics_rentabilidades_latest.parquet"
 ARCHIVO_SALIDA_LATEST = FORECASTS_DIR / "fics_pronósticos_latest.parquet"
+ARCHIVO_OBSERVADOS_LATEST = FORECASTS_DIR / "fics_observados_latest.parquet"
 
 # Períodos de rentabilidad a calcular (en días)
 PERIODOS_RENTABILIDAD = [30, 60, 90, 180, 360]
@@ -337,6 +338,28 @@ def analyze_date_ranges(df: pd.DataFrame) -> pd.DataFrame:
     return resumen
 
 
+def format_observed_output(df_long: pd.DataFrame) -> pd.DataFrame:
+    """
+    Formatea los datos observados usados para entrenamiento con el esquema requerido.
+
+    Columnas de salida:
+        tipo_entidad, codigo_entidad, codigo_negocio, tipo_participacion,
+        tipo_rentabilidad, fecha_corte, rentabilidad
+    """
+    out = df_long.copy()
+    out = _decompose_id(out)
+    cols = [
+        'tipo_entidad',
+        'codigo_entidad',
+        'codigo_negocio',
+        'tipo_participacion',
+        'tipo_rentabilidad',
+        'fecha_corte',
+        'rentabilidad',
+    ]
+    return out[cols]
+
+
 # ---------------------------------------------------------------------------
 # Paso 5 — Validación por grupo
 # ---------------------------------------------------------------------------
@@ -570,6 +593,7 @@ def run_forecasting() -> pd.DataFrame:
     print("-" * 70)
     
     todas_predicciones = []
+    todos_observados = []
     grupos = resumen['grupo_fechas'].unique()
     
     for grupo_num, grupo_id in enumerate(sorted(grupos)):
@@ -584,6 +608,9 @@ def run_forecasting() -> pd.DataFrame:
         
         # Filtrar datos del grupo
         datos_grupo = df[df['id'].isin(grupo_ids)].copy()
+
+        # Acumular observados que realmente entran al entrenamiento
+        todos_observados.append(format_observed_output(datos_grupo))
         
         # Entrenar y predecir
         predicciones = train_and_predict(
@@ -604,26 +631,36 @@ def run_forecasting() -> pd.DataFrame:
     
     # Combinar todas las predicciones
     df_predicciones = pd.concat(todas_predicciones, ignore_index=True)
+    df_observados = pd.concat(todos_observados, ignore_index=True)
     
     # 7. Guardar
-    return save_forecasts(df_predicciones, resumen_entrenamiento)
+    return save_forecasts(df_predicciones, df_observados, resumen_entrenamiento)
 
 
-def save_forecasts(df: pd.DataFrame, resumen: List[str]) -> pd.DataFrame:
-    """Guarda las predicciones y logs en archivos separados."""
+def save_forecasts(df: pd.DataFrame, df_observados: pd.DataFrame, resumen: List[str]) -> pd.DataFrame:
+    """Guarda predicciones, observados y logs en archivos separados."""
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     archivo_ts = FORECASTS_DIR / f"fics_pronósticos_{timestamp}.parquet"
+    archivo_obs_ts = FORECASTS_DIR / f"fics_observados_{timestamp}.parquet"
     archivo_log = FORECASTS_DIR / f"forecast_log_{timestamp}.txt"
     
     # Guardar predicciones
     df.to_parquet(archivo_ts, index=False)
     df.to_parquet(ARCHIVO_SALIDA_LATEST, index=False)
+
+    # Guardar observados
+    df_observados.to_parquet(archivo_obs_ts, index=False)
+    df_observados.to_parquet(ARCHIVO_OBSERVADOS_LATEST, index=False)
     
     print(f"\n✓ Predicciones guardadas:")
     print(f"  {archivo_ts.name}")
     print(f"  {ARCHIVO_SALIDA_LATEST.name}")
     print(f"  Filas: {len(df):>10,}")
+    print(f"\n✓ Observados guardados:")
+    print(f"  {archivo_obs_ts.name}")
+    print(f"  {ARCHIVO_OBSERVADOS_LATEST.name}")
+    print(f"  Filas: {len(df_observados):>10,}")
     
     # Guardar log
     with open(archivo_log, 'w', encoding='utf-8') as f:
