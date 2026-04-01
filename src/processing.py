@@ -14,11 +14,9 @@ Pasos del pipeline:
                    rent_diaria = VU_hoy / VU_ayer
     5. Filtra registros donde rent_diaria es NaN (típicamente el primer registro
                de cada fondo/participación donde no hay día anterior).
-    6. Marca festivos y fines de semana para Colombia y EE.UU. en dos columnas
-               binarias (0 = día hábil normal, 1 = fin de semana o festivo).
-    7. Guarda un único archivo en data/processed/:
+    6. Guarda un único archivo en data/processed/:
          - fics_rentabilidades_latest.parquet  — tabla con claves, métricas,
-                                                  rentabilidad diaria y festivos
+                                                 rentabilidad diaria
 
 Columnas de métricas conservadas en la salida:
     valor_unidad_operaciones, numero_unidades_fondo_cierre,
@@ -31,18 +29,19 @@ Columna calculada de flujo:
 Columna de ratio resultante:
     rent_diaria — ratio diario del cambio de valor_unidad_operaciones
                   respecto al día anterior (sin valores NaN)
-
-Columnas de marcado:
-    is_holiday_or_weekend_co — 1 si es fin de semana (sábado, domingo) o festivo colombiano
-    is_holiday_or_weekend_us — 1 si es fin de semana (sábado, domingo) o festivo de EE.UU.
 """
 
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from pathlib import Path
-import holidays
-from vacuum import run_vacuum
+
+try:
+    # Cuando se ejecuta desde src/ (python processing.py)
+    from vacuum import run_vacuum
+except ModuleNotFoundError:
+    # Cuando se ejecuta desde la raiz del proyecto o notebooks (import src.processing)
+    from src.vacuum import run_vacuum
 
 # ---------------------------------------------------------------------------
 # Constantes
@@ -305,51 +304,6 @@ def filter_na_rentabilidades(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def marcar_festivos_y_fines_de_semana(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Agrega dos columnas binarias para identificar fines de semana y festivos:
-    
-    - is_holiday_or_weekend_co: 1 si es sábado, domingo o festivo en Colombia; 0 si no
-    - is_holiday_or_weekend_us: 1 si es sábado, domingo o festivo en EE.UU.; 0 si no
-    
-    Útil para análisis posterior: fines de semana y festivos tienen volatilidad diferente.
-    
-    Retorna el DataFrame con las dos nuevas columnas.
-    """
-    df = df.copy()
-    
-    # Obtener calendarios de festivos para ambos países
-    # Se cubre el rango de fechas presentes en los datos
-    if df.empty:
-        return df
-    
-    fecha_min = df["fecha_corte"].min()
-    fecha_max = df["fecha_corte"].max()
-    
-    # Crear conjuntos de festivos para cada país
-    holidays_co = holidays.Colombia(years=range(fecha_min.year, fecha_max.year + 1))
-    holidays_us = holidays.US(years=range(fecha_min.year, fecha_max.year + 1))
-    
-    # Crear columnas binarias
-    # weekday() retorna 0-6 donde 5=sábado, 6=domingo
-    df["is_holiday_or_weekend_co"] = df["fecha_corte"].apply(
-        lambda fecha: 1 if (fecha.weekday() >= 5 or fecha in holidays_co) else 0
-    )
-    
-    df["is_holiday_or_weekend_us"] = df["fecha_corte"].apply(
-        lambda fecha: 1 if (fecha.weekday() >= 5 or fecha in holidays_us) else 0
-    )
-    
-    co_holidays_count = df["is_holiday_or_weekend_co"].sum()
-    us_holidays_count = df["is_holiday_or_weekend_us"].sum()
-    
-    print(f"\nMarcado de festivos y fines de semana:")
-    print(f"  Registros en festivos/fines de semana Colombia: {co_holidays_count:,}")
-    print(f"  Registros en festivos/fines de semana EE.UU.:  {us_holidays_count:,}")
-    
-    return df
-
-
 def save_processed(df: pd.DataFrame) -> Path:
     """
     Guarda un único artefacto en data/processed/:
@@ -420,13 +374,12 @@ def run_processing() -> pd.DataFrame:
         3. Calcula flujo_neto_inversionistas y selecciona columnas de salida
         4. Calcula rentabilidad diaria (respecto al día anterior)
         5. Filtra registros sin rentabilidad calculada (NaN)
-        6. Marca festivos y fines de semana (Colombia y EE.UU.)
-        7. Guarda un único artefacto en data/processed/
+        6. Guarda un único artefacto en data/processed/
 
     Retorna
     -------
     pd.DataFrame con todas las columnas: claves, fecha_corte, métricas,
-    flujo_neto_inversionistas, rent_diaria (sin NaN), y marcas de festivos.
+    flujo_neto_inversionistas y rent_diaria (sin NaN).
 
     Columnas de salida:
         - tipo_entidad, codigo_entidad, codigo_negocio, tipo_participacion
@@ -439,8 +392,6 @@ def run_processing() -> pd.DataFrame:
         - rendimientos_abonados
         - flujo_neto_inversionistas
         - rent_diaria (sin valores NaN)
-        - is_holiday_or_weekend_co (1 si es fin de semana o festivo en Colombia)
-        - is_holiday_or_weekend_us (1 si es fin de semana o festivo en EE.UU.)
 
     Ejemplo de uso desde la app Shiny
     ----------------------------------
@@ -467,16 +418,13 @@ def run_processing() -> pd.DataFrame:
     # 5. Filtrar registros sin rentabilidad calculada (NaN)
     df = filter_na_rentabilidades(df)
 
-    # 6. Marcar festivos y fines de semana
-    df = marcar_festivos_y_fines_de_semana(df)
-
-    # 7. Resumen diagnóstico
+    # 6. Resumen diagnóstico
     _print_resumen(df)
 
-    # 8. Guardar salida única
+    # 7. Guardar salida única
     save_processed(df)
 
-    # 9. Limpiar históricos antiguos (automático)
+    # 8. Limpiar históricos antiguos (automático)
     print("\n🧹 Ejecutando limpieza de históricos...")
     resultado_vacuum = run_vacuum(
         days_retention=7,

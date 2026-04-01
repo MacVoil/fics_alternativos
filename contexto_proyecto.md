@@ -74,15 +74,20 @@ fics_alternativos/
 │   │   │   └── catalogo_ultima_actualizacion.txt
 │   │   ├── fics_alternativos_latest.parquet   # Hechos crudos — último run
 │   │   └── fics_alternativos_<timestamp>.parquet  # Hechos crudos — trazabilidad
-│   ├── processed/     # Rentabilidades diarias calculadas (.parquet)
+│   ├── processed/     # Rentabilidades diarias calculadas
 │   │   ├── fics_rentabilidades_latest.parquet
 │   │   └── fics_rentabilidades_<timestamp>.parquet
-│   └── forecasts/     # Proyecciones de AutoGluon (.parquet) — Pendiente
+│   └── forecasts/     # Proyecciones de AutoGluon
+│       ├── fics_pronósticos_latest.parquet
+│       ├── fics_pronósticos_<timestamp>.parquet
+│       └── forecast_log_<timestamp>.txt       # Log de cada entrenamiento
 ├── src/
 │   ├── catalogo.py        # Descarga de dimensiones desde API Socrata
 │   ├── ingestion.py       # Descarga de hechos crudos desde API Socrata
 │   ├── processing.py      # Cálculo de rentabilidades diarias
-│   └── forecasting.py     # Entrenamiento y predicción AutoGluon
+│   ├── forecasting.py     # Entrenamiento y predicción AutoGluon
+│   └── vacuum.py          # Limpieza automática de archivos históricos
+├── autogluon_models/      # Modelos entrenados por AutoGluon
 ├── app/
 │   └── app.py             # Shiny for Python
 └── requirements.txt
@@ -115,8 +120,8 @@ fics_alternativos/
 - **Paso 3 — Flujo y métricas**: calcula `flujo_neto_inversionistas = aportes_recibidos - retiros_redenciones + anulaciones` y selecciona columnas de salida
 - **Paso 4 — Rentabilidad diaria**: calcula el ratio diario respecto al día anterior usando: `rent_diaria = VU_hoy / VU_ayer`
 - **Paso 5 — Filtro NaN**: elimina registros donde `rent_diaria` es NaN (típicamente el primer registro de cada fondo/participación)
-- **Paso 6 — Festividades y fines de semana** (NEW): marca registros que caen en fechas festivas o fines de semana para Colombia y EE.UU., agregando columnas `is_holiday_or_weekend_co` e `is_holiday_or_weekend_us`
-- **Paso 7 — Persistencia**: guarda resultado único en `data/processed/fics_rentabilidades_latest.parquet` + copia con timestamp
+- **Paso 6 — Persistencia**: guarda resultado único en `data/processed/fics_rentabilidades_latest.parquet` + copia con timestamp
+- **Ejecuta automáticamente limpieza de históricos (`vacuum.py`) al finalizar**
 
 **Columnas de salida:**
 - Claves: tipo_entidad, codigo_entidad, codigo_negocio, tipo_participacion, fecha_corte
@@ -124,20 +129,38 @@ fics_alternativos/
 - Métricas: valor_unidad_operaciones, numero_unidades_fondo_cierre, valor_fondo_cierre_dia_t, numero_inversionistas, rendimientos_abonados
 - Flujo: flujo_neto_inversionistas
 - Rentabilidad: rent_diaria (sin valores NaN)
-- Contexto: is_holiday_or_weekend_co, is_holiday_or_weekend_us
 
 ### 4. Mantenimiento de datos (`vacuum.py`) ✅ Completado
 - Ejecuta limpieza automática de archivos históricos con timestamp que excedan el período de retención (por defecto 7 días)
 - Preserva siempre los archivos `_latest` como referencias actuales
 - Permite ejecutarse en modo `dry_run` para validar qué se eliminaría sin hacer cambios
-- **Integración completada en dos módulos:**
+- **Integración completada en tres módulos:**
   - Al final de `ingestion.py`: después de guardar datos crudos
   - Al final de `processing.py`: después de guardar rentabilidades calculadas
+  - Al final de `forecasting.py`: después de guardar proyecciones
+- Import robusto con try/except en `ingestion.py` y `processing.py` para funcionar tanto desde `src/` como desde la raíz del proyecto o notebooks
 
-### 5. Forecast (`forecasting.py`) — 🔲 Pendiente
-- Lee el parquet de `data/processed/`
-- Entrena modelos con AutoGluon TimeSeries por producto y por horizonte (30/60/90/180/360 días)
-- Guarda proyecciones en `data/forecasts/`
+### 5. Forecast (`forecasting.py`) ✅ Completado
+- Lee `data/processed/fics_rentabilidades_latest.parquet`
+- **Paso 1 — Carga y preparación**: selecciona columnas FK + `rent_diaria`, crea `id` de producto (`tipo_entidad_codigo_entidad_codigo_negocio_tipo_participacion`)
+- **Paso 2 — Rentabilidades por período**: calcula rentabilidades de 30, 60, 90, 180 y 360 días usando rolling windows con medias geométricas (log-returns), anualizado a 365 días
+- **Paso 3 — Filtrado y transformación**: filtra NaN en `rent_360d` (descarta primeros 359 registros de cada producto), descarta `rent_diaria`, transforma a formato largo (cada período en fila separada), incluye el período en el `id`
+- **Paso 4 — Análisis de fechas**: por cada `id` (producto + período) calcula min/max de fechas y agrupa productos con fechas idénticas como lote de entrenamiento
+- **Paso 5 — Validación por grupo**: mínimo 90 días para entrenar; entre 90-730 días usa horizonte adaptativo `(n_dias-1)//2`; ≥731 días usa horizonte de 365 días
+- **Paso 6 — Entrenamiento**: entrena AutoGluon TimeSeries con Chronos2 ZeroShot y ZeroShot-small por cada grupo; genera predicciones con cuantiles p0.2, p0.5, p0.8 + media
+- **Paso 7 — Persistencia**: guarda en `data/forecasts/fics_pronósticos_latest.parquet` + copia con timestamp + log de entrenamiento
+- **Ejecuta automáticamente limpieza de históricos (`vacuum.py`) al finalizar**
+
+**Columnas de salida:**
+- Claves: tipo_entidad, codigo_entidad, codigo_negocio, tipo_participacion (descompuestas del id)
+- tipo_rentabilidad: rent_30d, rent_60d, rent_90d, rent_180d o rent_360d
+- fecha_corte: fecha de la proyección
+- Proyecciones: mean, p0.2, p0.5, p0.8
+
+**Mensajes de validación para la app:**
+- `< 90 días`: "Insuficientes datos — no se genera forecast"
+- `90-730 días`: "Datos limitados — forecast de X días (no alcanza 365 días)"
+- `≥ 731 días`: forecast completo de 365 días
 
 ---
 
@@ -162,7 +185,7 @@ fics_alternativos/
 | ingestion.py | ✅ Completado |
 | processing.py | ✅ Completado |
 | vacuum.py | ✅ Completado |
-| forecasting.py | 🔲 Pendiente |
+| forecasting.py | ✅ Completado |
 | app.py | 🔲 Pendiente |
 
 ---
@@ -175,7 +198,7 @@ fics_alternativos/
 - La rentabilidad diaria se calcula como el ratio simple: `rent_diaria = VU_hoy / VU_ayer`.
 - Se eliminan los primeros registros de cada serie (`rent_diaria = NaN`) ya que no hay datos del día anterior para calcularla.
 - El filtro de `principal_compartimento` conserva el valor mínimo por grupo para casos edge con múltiples compartimentos (99.99% de los grupos tienen solo uno).
-- Future: AutoGluon se usará en modo TimeSeries para generar proyecciones de rentabilidades futuras.
+- AutoGluon TimeSeries se usa con Chronos2 (zero-shot y small) con cuantiles 0.2/0.5/0.8 y media. Los productos se agrupan por rango de fechas similar para entrenar en lotes coherentes.
 - Las PKs de entidad y fondo son **siempre compuestas**: `codigo_entidad` y `codigo_negocio` no son únicos globalmente, solo dentro de su entidad padre.
 - El catálogo usa una ventana de 30 días (configurable con `VENTANA_DIAS`) para garantizar cobertura de entidades que no reportan diariamente.
 - Los nombres descriptivos de la API son inconsistentes entre fechas; se resuelve tomando el registro más reciente por PK en el proceso de construcción de dimensiones.
@@ -187,5 +210,5 @@ fics_alternativos/
 - **Patrón de retención**: Conserva todos los archivos `_latest` (referencias actuales) permanentemente y elimina archivos timestamped más antiguos que el período de retención (por defecto 7 días).
 - **Archivos ignorados**: Archivos sin patrón de timestamp (p.ej. `dim_*.parquet`, `catalogo_*.txt`) nunca se eliminan.
 - **Seguridad**: La función admite modo `dry_run` para validar qué se eliminaría sin hacer cambios reales.
-- **Integración**: Se puede invocar manualmente (`run_vacuum()`) o integrar al final de pipelines de ingesta/procesamiento.
+- **Integración**: Se puede invocar manualmente (`run_vacuum()`) o integrar al final de pipelines de ingesta/procesamiento/forecasting.
 - **Requisitos de calidad**: Asume que los timestamps en nombres de archivo siguen el patrón exacto `YYYYMMDD_HHMMSS` — cualquier variación es ignorada.

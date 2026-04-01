@@ -32,7 +32,13 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from vacuum import run_vacuum
+
+try:
+    # Cuando se ejecuta desde src/ (python ingestion.py)
+    from vacuum import run_vacuum
+except ModuleNotFoundError:
+    # Cuando se ejecuta desde la raiz del proyecto o notebooks (import src.ingestion)
+    from src.vacuum import run_vacuum
 
 # ---------------------------------------------------------------------------
 # Constantes globales

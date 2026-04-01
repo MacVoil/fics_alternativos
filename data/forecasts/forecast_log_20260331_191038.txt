@@ -1,0 +1,7 @@
+RESUMEN DE ENTRENAMIENTO
+======================================================================
+Timestamp: 20260331_191038
+
+Grupo 0: ✓ 3,650 predicciones generadas
+Grupo 1: ✓ 1,825 predicciones generadas
+Grupo 2: ✓ 560 predicciones generadas
