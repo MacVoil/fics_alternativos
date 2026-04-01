@@ -30730,3 +30730,841 @@ Model not specified in predict, will default to the model with the best validati
 Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
 Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
 Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Beginning AutoGluon training... Time limit = 1800s
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 16.00/16.00 GB
+Total GPU Memory:   Free: 16.00 GB, Allocated: 0.00 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       17.06 GB / 31.15 GB (54.8%)
+Disk Space Avail:   1312.00 GB / 1862.12 GB (70.5%)
+===================================================
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 365,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+train_data with frequency 'IRREG' has been resampled to frequency 'D'.
+Provided train_data has 33810 rows (NaN fraction=0.0%), 10 time series. Median time series length is 3381 (min=3381, max=3381). 
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 8 total windows.
+
+Provided data contains following columns:
+	target: 'rentabilidad'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+===================================================
+
+Starting training. Start time is 2026-03-31 20:09:22
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Training timeseries model Chronos2ZeroShot. Training for up to 598.3s of the 1794.8s of remaining time.
+	-0.1777       = Validation score (-WQL)
+	9.11    s     = Training runtime
+	0.07    s     = Validation (prediction) runtime
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1185.6s of the 1785.6s of remaining time.
+	-0.1804       = Validation score (-WQL)
+	4.33    s     = Training runtime
+	0.10    s     = Validation (prediction) runtime
+Fitting 1 ensemble(s), in 1 layers.
+Training ensemble model WeightedEnsemble. Training for up to 1781.1s.
+	Ensemble weights: {'Chronos2ZeroShot': 0.67, 'Chronos2ZeroShot-small': 0.33}
+	-0.1760       = Validation score (-WQL)
+	0.56    s     = Training runtime
+	0.17    s     = Validation (prediction) runtime
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Total runtime: 14.26 s
+Best model: WeightedEnsemble
+Best model score: -0.1760
+data with frequency 'IRREG' has been resampled to frequency 'D'.
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Warning: path already exists! This predictor may overwrite an existing predictor! path="autogluon_models/"
+Beginning AutoGluon training... Time limit = 1800s
+Beginning AutoGluon training... Time limit = 1800s
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 15.99/16.00 GB
+Total GPU Memory:   Free: 15.99 GB, Allocated: 0.01 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       15.25 GB / 31.15 GB (49.0%)
+Disk Space Avail:   1311.99 GB / 1862.12 GB (70.5%)
+===================================================
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 15.99/16.00 GB
+Total GPU Memory:   Free: 15.99 GB, Allocated: 0.01 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       15.25 GB / 31.15 GB (49.0%)
+Disk Space Avail:   1311.99 GB / 1862.12 GB (70.5%)
+===================================================
+
+Fitting with arguments:
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 365,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 365,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+Provided train_data has 7405 rows, 5 time series. Median time series length is 1481 (min=1481, max=1481). 
+Provided train_data has 7405 rows, 5 time series. Median time series length is 1481 (min=1481, max=1481). 
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 3 total windows.
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 3 total windows.
+
+Provided data contains following columns:
+
+Provided data contains following columns:
+	target: 'rentabilidad'
+	target: 'rentabilidad'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+===================================================
+===================================================
+
+Starting training. Start time is 2026-03-31 20:09:41
+
+Starting training. Start time is 2026-03-31 20:09:41
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Training timeseries model Chronos2ZeroShot. Training for up to 600.0s of the 1800.0s of remaining time.
+Training timeseries model Chronos2ZeroShot. Training for up to 600.0s of the 1800.0s of remaining time.
+	-0.1473       = Validation score (-WQL)
+	-0.1473       = Validation score (-WQL)
+	1.93    s     = Training runtime
+	1.93    s     = Training runtime
+	0.06    s     = Validation (prediction) runtime
+	0.06    s     = Validation (prediction) runtime
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1198.0s of the 1798.0s of remaining time.
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1198.0s of the 1798.0s of remaining time.
+	-0.1515       = Validation score (-WQL)
+	-0.1515       = Validation score (-WQL)
+	1.60    s     = Training runtime
+	1.60    s     = Training runtime
+	0.05    s     = Validation (prediction) runtime
+	0.05    s     = Validation (prediction) runtime
+Fitting 1 ensemble(s), in 1 layers.
+Fitting 1 ensemble(s), in 1 layers.
+Training ensemble model WeightedEnsemble. Training for up to 1796.3s.
+Training ensemble model WeightedEnsemble. Training for up to 1796.3s.
+	Ensemble weights: {'Chronos2ZeroShot': 0.7, 'Chronos2ZeroShot-small': 0.3}
+	Ensemble weights: {'Chronos2ZeroShot': 0.7, 'Chronos2ZeroShot-small': 0.3}
+	-0.1460       = Validation score (-WQL)
+	-0.1460       = Validation score (-WQL)
+	0.19    s     = Training runtime
+	0.19    s     = Training runtime
+	0.11    s     = Validation (prediction) runtime
+	0.11    s     = Validation (prediction) runtime
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Total runtime: 3.90 s
+Total runtime: 3.90 s
+Best model: WeightedEnsemble
+Best model: WeightedEnsemble
+Best model score: -0.1460
+Best model score: -0.1460
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Warning: path already exists! This predictor may overwrite an existing predictor! path="autogluon_models/"
+Warning: path already exists! This predictor may overwrite an existing predictor! path="autogluon_models/"
+Beginning AutoGluon training... Time limit = 1800s
+Beginning AutoGluon training... Time limit = 1800s
+Beginning AutoGluon training... Time limit = 1800s
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 15.99/16.00 GB
+Total GPU Memory:   Free: 15.99 GB, Allocated: 0.01 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       15.24 GB / 31.15 GB (48.9%)
+Disk Space Avail:   1312.00 GB / 1862.12 GB (70.5%)
+===================================================
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 15.99/16.00 GB
+Total GPU Memory:   Free: 15.99 GB, Allocated: 0.01 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       15.24 GB / 31.15 GB (48.9%)
+Disk Space Avail:   1312.00 GB / 1862.12 GB (70.5%)
+===================================================
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 15.99/16.00 GB
+Total GPU Memory:   Free: 15.99 GB, Allocated: 0.01 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       15.24 GB / 31.15 GB (48.9%)
+Disk Space Avail:   1312.00 GB / 1862.12 GB (70.5%)
+===================================================
+
+Fitting with arguments:
+
+Fitting with arguments:
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 112,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 112,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 112,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+Provided train_data has 1135 rows, 5 time series. Median time series length is 227 (min=227, max=227). 
+Provided train_data has 1135 rows, 5 time series. Median time series length is 227 (min=227, max=227). 
+Provided train_data has 1135 rows, 5 time series. Median time series length is 227 (min=227, max=227). 
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 1 total windows.
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 1 total windows.
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 1 total windows.
+
+Provided data contains following columns:
+
+Provided data contains following columns:
+
+Provided data contains following columns:
+	target: 'rentabilidad'
+	target: 'rentabilidad'
+	target: 'rentabilidad'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+===================================================
+===================================================
+===================================================
+
+Starting training. Start time is 2026-03-31 20:09:46
+
+Starting training. Start time is 2026-03-31 20:09:46
+
+Starting training. Start time is 2026-03-31 20:09:46
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Training timeseries model Chronos2ZeroShot. Training for up to 600.0s of the 1800.0s of remaining time.
+Training timeseries model Chronos2ZeroShot. Training for up to 600.0s of the 1800.0s of remaining time.
+Training timeseries model Chronos2ZeroShot. Training for up to 600.0s of the 1800.0s of remaining time.
+	-0.0315       = Validation score (-WQL)
+	-0.0315       = Validation score (-WQL)
+	-0.0315       = Validation score (-WQL)
+	0.70    s     = Training runtime
+	0.70    s     = Training runtime
+	0.70    s     = Training runtime
+	0.05    s     = Validation (prediction) runtime
+	0.05    s     = Validation (prediction) runtime
+	0.05    s     = Validation (prediction) runtime
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1199.2s of the 1799.2s of remaining time.
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1199.2s of the 1799.2s of remaining time.
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1199.2s of the 1799.2s of remaining time.
+	-0.0315       = Validation score (-WQL)
+	-0.0315       = Validation score (-WQL)
+	-0.0315       = Validation score (-WQL)
+	0.51    s     = Training runtime
+	0.51    s     = Training runtime
+	0.51    s     = Training runtime
+	0.02    s     = Validation (prediction) runtime
+	0.02    s     = Validation (prediction) runtime
+	0.02    s     = Validation (prediction) runtime
+Fitting 1 ensemble(s), in 1 layers.
+Fitting 1 ensemble(s), in 1 layers.
+Fitting 1 ensemble(s), in 1 layers.
+Training ensemble model WeightedEnsemble. Training for up to 1798.7s.
+Training ensemble model WeightedEnsemble. Training for up to 1798.7s.
+Training ensemble model WeightedEnsemble. Training for up to 1798.7s.
+	Ensemble weights: {'Chronos2ZeroShot': 0.57, 'Chronos2ZeroShot-small': 0.43}
+	Ensemble weights: {'Chronos2ZeroShot': 0.57, 'Chronos2ZeroShot-small': 0.43}
+	Ensemble weights: {'Chronos2ZeroShot': 0.57, 'Chronos2ZeroShot-small': 0.43}
+	-0.0313       = Validation score (-WQL)
+	-0.0313       = Validation score (-WQL)
+	-0.0313       = Validation score (-WQL)
+	0.06    s     = Training runtime
+	0.06    s     = Training runtime
+	0.06    s     = Training runtime
+	0.07    s     = Validation (prediction) runtime
+	0.07    s     = Validation (prediction) runtime
+	0.07    s     = Validation (prediction) runtime
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Total runtime: 1.40 s
+Total runtime: 1.40 s
+Total runtime: 1.40 s
+Best model: WeightedEnsemble
+Best model: WeightedEnsemble
+Best model: WeightedEnsemble
+Best model score: -0.0313
+Best model score: -0.0313
+Best model score: -0.0313
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Beginning AutoGluon training... Time limit = 1800s
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 16.00/16.00 GB
+Total GPU Memory:   Free: 16.00 GB, Allocated: 0.00 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       16.76 GB / 31.15 GB (53.8%)
+Disk Space Avail:   1311.98 GB / 1862.12 GB (70.5%)
+===================================================
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 365,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+train_data with frequency 'IRREG' has been resampled to frequency 'D'.
+Provided train_data has 33810 rows (NaN fraction=0.0%), 10 time series. Median time series length is 3381 (min=3381, max=3381). 
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 8 total windows.
+
+Provided data contains following columns:
+	target: 'rentabilidad'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+===================================================
+
+Starting training. Start time is 2026-03-31 20:52:32
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Training timeseries model Chronos2ZeroShot. Training for up to 598.3s of the 1794.8s of remaining time.
+	-0.1777       = Validation score (-WQL)
+	9.32    s     = Training runtime
+	0.08    s     = Validation (prediction) runtime
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1185.3s of the 1785.3s of remaining time.
+	-0.1804       = Validation score (-WQL)
+	4.51    s     = Training runtime
+	0.11    s     = Validation (prediction) runtime
+Fitting 1 ensemble(s), in 1 layers.
+Training ensemble model WeightedEnsemble. Training for up to 1780.7s.
+	Ensemble weights: {'Chronos2ZeroShot': 0.67, 'Chronos2ZeroShot-small': 0.33}
+	-0.1760       = Validation score (-WQL)
+	0.55    s     = Training runtime
+	0.19    s     = Validation (prediction) runtime
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Total runtime: 14.66 s
+Best model: WeightedEnsemble
+Best model score: -0.1760
+data with frequency 'IRREG' has been resampled to frequency 'D'.
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Warning: path already exists! This predictor may overwrite an existing predictor! path="autogluon_models/"
+Beginning AutoGluon training... Time limit = 1800s
+Beginning AutoGluon training... Time limit = 1800s
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 15.99/16.00 GB
+Total GPU Memory:   Free: 15.99 GB, Allocated: 0.01 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       14.11 GB / 31.15 GB (45.3%)
+Disk Space Avail:   1311.98 GB / 1862.12 GB (70.5%)
+===================================================
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 15.99/16.00 GB
+Total GPU Memory:   Free: 15.99 GB, Allocated: 0.01 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       14.11 GB / 31.15 GB (45.3%)
+Disk Space Avail:   1311.98 GB / 1862.12 GB (70.5%)
+===================================================
+
+Fitting with arguments:
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 365,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 365,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+Provided train_data has 7405 rows, 5 time series. Median time series length is 1481 (min=1481, max=1481). 
+Provided train_data has 7405 rows, 5 time series. Median time series length is 1481 (min=1481, max=1481). 
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 3 total windows.
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 3 total windows.
+
+Provided data contains following columns:
+
+Provided data contains following columns:
+	target: 'rentabilidad'
+	target: 'rentabilidad'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+===================================================
+===================================================
+
+Starting training. Start time is 2026-03-31 20:52:51
+
+Starting training. Start time is 2026-03-31 20:52:51
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Training timeseries model Chronos2ZeroShot. Training for up to 600.0s of the 1800.0s of remaining time.
+Training timeseries model Chronos2ZeroShot. Training for up to 600.0s of the 1800.0s of remaining time.
+	-0.1473       = Validation score (-WQL)
+	-0.1473       = Validation score (-WQL)
+	2.04    s     = Training runtime
+	2.04    s     = Training runtime
+	0.04    s     = Validation (prediction) runtime
+	0.04    s     = Validation (prediction) runtime
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1197.9s of the 1797.9s of remaining time.
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1197.9s of the 1797.9s of remaining time.
+	-0.1515       = Validation score (-WQL)
+	-0.1515       = Validation score (-WQL)
+	1.49    s     = Training runtime
+	1.49    s     = Training runtime
+	0.04    s     = Validation (prediction) runtime
+	0.04    s     = Validation (prediction) runtime
+Fitting 1 ensemble(s), in 1 layers.
+Fitting 1 ensemble(s), in 1 layers.
+Training ensemble model WeightedEnsemble. Training for up to 1796.3s.
+Training ensemble model WeightedEnsemble. Training for up to 1796.3s.
+	Ensemble weights: {'Chronos2ZeroShot': 0.7, 'Chronos2ZeroShot-small': 0.3}
+	Ensemble weights: {'Chronos2ZeroShot': 0.7, 'Chronos2ZeroShot-small': 0.3}
+	-0.1460       = Validation score (-WQL)
+	-0.1460       = Validation score (-WQL)
+	0.19    s     = Training runtime
+	0.19    s     = Training runtime
+	0.08    s     = Validation (prediction) runtime
+	0.08    s     = Validation (prediction) runtime
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Total runtime: 3.86 s
+Total runtime: 3.86 s
+Best model: WeightedEnsemble
+Best model: WeightedEnsemble
+Best model score: -0.1460
+Best model score: -0.1460
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Warning: path already exists! This predictor may overwrite an existing predictor! path="autogluon_models/"
+Warning: path already exists! This predictor may overwrite an existing predictor! path="autogluon_models/"
+Beginning AutoGluon training... Time limit = 1800s
+Beginning AutoGluon training... Time limit = 1800s
+Beginning AutoGluon training... Time limit = 1800s
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+AutoGluon will save models to 'c:\Users\user\Desktop\Proyectos\fics_alternativos\autogluon_models'
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 15.99/16.00 GB
+Total GPU Memory:   Free: 15.99 GB, Allocated: 0.01 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       14.26 GB / 31.15 GB (45.8%)
+Disk Space Avail:   1311.98 GB / 1862.12 GB (70.5%)
+===================================================
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 15.99/16.00 GB
+Total GPU Memory:   Free: 15.99 GB, Allocated: 0.01 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       14.26 GB / 31.15 GB (45.8%)
+Disk Space Avail:   1311.98 GB / 1862.12 GB (70.5%)
+===================================================
+=================== System Info ===================
+AutoGluon Version:  1.5.0
+Python Version:     3.11.15
+Operating System:   Windows
+Platform Machine:   AMD64
+Platform Version:   10.0.26200
+CPU Count:          24
+Pytorch Version:    2.4.1+cu121
+CUDA Version:       12.1
+GPU Memory:         GPU 0: 15.99/16.00 GB
+Total GPU Memory:   Free: 15.99 GB, Allocated: 0.01 GB, Total: 16.00 GB
+GPU Count:          1
+Memory Avail:       14.26 GB / 31.15 GB (45.8%)
+Disk Space Avail:   1311.98 GB / 1862.12 GB (70.5%)
+===================================================
+
+Fitting with arguments:
+
+Fitting with arguments:
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 112,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 112,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+{'enable_ensemble': True,
+ 'eval_metric': WQL,
+ 'freq': 'D',
+ 'hyperparameters': {'Chronos2': [{'ag_args': {'name_suffix': 'ZeroShot'},
+                                   'model_path': 'autogluon/chronos-2'},
+                                  {'ag_args': {'name_suffix': 'ZeroShot-small'},
+                                   'model_path': 'autogluon/chronos-2-small'}]},
+ 'known_covariates_names': [],
+ 'num_val_windows': 10,
+ 'prediction_length': 112,
+ 'quantile_levels': [0.2, 0.5, 0.8],
+ 'random_seed': 42,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'rentabilidad',
+ 'time_limit': 1800,
+ 'verbosity': 2}
+
+Provided train_data has 1135 rows, 5 time series. Median time series length is 227 (min=227, max=227). 
+Provided train_data has 1135 rows, 5 time series. Median time series length is 227 (min=227, max=227). 
+Provided train_data has 1135 rows, 5 time series. Median time series length is 227 (min=227, max=227). 
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 1 total windows.
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 1 total windows.
+Time series in train_data are too short for chosen num_val_windows=(10,). Reducing num_val_windows to 1 total windows.
+
+Provided data contains following columns:
+
+Provided data contains following columns:
+
+Provided data contains following columns:
+	target: 'rentabilidad'
+	target: 'rentabilidad'
+	target: 'rentabilidad'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'WQL'
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+===================================================
+===================================================
+===================================================
+
+Starting training. Start time is 2026-03-31 20:52:56
+
+Starting training. Start time is 2026-03-31 20:52:56
+
+Starting training. Start time is 2026-03-31 20:52:56
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Models that will be trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small']
+Training timeseries model Chronos2ZeroShot. Training for up to 600.0s of the 1800.0s of remaining time.
+Training timeseries model Chronos2ZeroShot. Training for up to 600.0s of the 1800.0s of remaining time.
+Training timeseries model Chronos2ZeroShot. Training for up to 600.0s of the 1800.0s of remaining time.
+	-0.0315       = Validation score (-WQL)
+	-0.0315       = Validation score (-WQL)
+	-0.0315       = Validation score (-WQL)
+	0.75    s     = Training runtime
+	0.75    s     = Training runtime
+	0.75    s     = Training runtime
+	0.06    s     = Validation (prediction) runtime
+	0.06    s     = Validation (prediction) runtime
+	0.06    s     = Validation (prediction) runtime
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1199.2s of the 1799.2s of remaining time.
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1199.2s of the 1799.2s of remaining time.
+Training timeseries model Chronos2ZeroShot-small. Training for up to 1199.2s of the 1799.2s of remaining time.
+	-0.0315       = Validation score (-WQL)
+	-0.0315       = Validation score (-WQL)
+	-0.0315       = Validation score (-WQL)
+	0.53    s     = Training runtime
+	0.53    s     = Training runtime
+	0.53    s     = Training runtime
+	0.02    s     = Validation (prediction) runtime
+	0.02    s     = Validation (prediction) runtime
+	0.02    s     = Validation (prediction) runtime
+Fitting 1 ensemble(s), in 1 layers.
+Fitting 1 ensemble(s), in 1 layers.
+Fitting 1 ensemble(s), in 1 layers.
+Training ensemble model WeightedEnsemble. Training for up to 1798.6s.
+Training ensemble model WeightedEnsemble. Training for up to 1798.6s.
+Training ensemble model WeightedEnsemble. Training for up to 1798.6s.
+	Ensemble weights: {'Chronos2ZeroShot': 0.57, 'Chronos2ZeroShot-small': 0.43}
+	Ensemble weights: {'Chronos2ZeroShot': 0.57, 'Chronos2ZeroShot-small': 0.43}
+	Ensemble weights: {'Chronos2ZeroShot': 0.57, 'Chronos2ZeroShot-small': 0.43}
+	-0.0313       = Validation score (-WQL)
+	-0.0313       = Validation score (-WQL)
+	-0.0313       = Validation score (-WQL)
+	0.08    s     = Training runtime
+	0.08    s     = Training runtime
+	0.08    s     = Training runtime
+	0.08    s     = Validation (prediction) runtime
+	0.08    s     = Validation (prediction) runtime
+	0.08    s     = Validation (prediction) runtime
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Training complete. Models trained: ['Chronos2ZeroShot', 'Chronos2ZeroShot-small', 'WeightedEnsemble']
+Total runtime: 1.47 s
+Total runtime: 1.47 s
+Total runtime: 1.47 s
+Best model: WeightedEnsemble
+Best model: WeightedEnsemble
+Best model: WeightedEnsemble
+Best model score: -0.0313
+Best model score: -0.0313
+Best model score: -0.0313
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble

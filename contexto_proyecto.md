@@ -65,6 +65,7 @@ Web app local para visualizar y proyectar la rentabilidad de fondos de inversió
 
 ```
 fics_alternativos/
+├── .vscode/
 ├── data/
 │   ├── raw/
 │   │   ├── dims/                          # Dimensiones del catálogo
@@ -78,6 +79,8 @@ fics_alternativos/
 │   │   ├── fics_rentabilidades_latest.parquet
 │   │   └── fics_rentabilidades_<timestamp>.parquet
 │   └── forecasts/     # Proyecciones de AutoGluon
+│       ├── fics_observados_latest.parquet
+│       ├── fics_observados_<timestamp>.parquet
 │       ├── fics_pronósticos_latest.parquet
 │       ├── fics_pronósticos_<timestamp>.parquet
 │       └── forecast_log_<timestamp>.txt       # Log de cada entrenamiento
@@ -90,7 +93,10 @@ fics_alternativos/
 ├── autogluon_models/      # Modelos entrenados por AutoGluon
 ├── app/
 │   └── app.py             # Shiny for Python
-└── requirements.txt
+├── docs/
+├── README_VACUUM.md
+├── requirements_backup_ag15pipp_before_shiny.txt
+└── requirements_backup_ag15pipp_after_shiny.txt
 ```
 
 ---
@@ -164,16 +170,22 @@ fics_alternativos/
 
 ---
 
-## App Shiny — Funcionalidades previstas
+## App Shiny — Estado actual (MVP inicial)
 
-- **Botón "Actualizar catálogo"** → ejecuta `catalogo.py` — refresca la lista de fondos disponibles
-- **Selector de fondos** → el usuario escoge hasta 5 combinaciones `(fondo + tipo_participacion)` del catálogo
-- **Botón "Actualizar datos"** → ejecuta `ingestion.py` con los fondos seleccionados
-- **Botón "Procesar rentabilidades"** → ejecuta `processing.py` y genera tabla de rentabilidades diarias
-- **Botón "Entrenar modelos"** → ejecuta `forecasting.py`
-- Pestaña de visualización de rentabilidades diarias históricas por fondo
-- Pestaña de visualización de proyecciones (forecast)
-- Tabla interactiva con datos de flujo neto de inversionistas y métricas operativas
+- Archivo principal creado en `app/app.py`.
+- Sidebar con orquestación del pipeline:
+  - **1) Actualizar catálogo** → ejecuta `run_catalogo()`
+  - **2) Actualizar datos** → ejecuta `run_ingestion()` para hasta 5 fondos
+  - **3) Procesar rentabilidades** → ejecuta `run_processing()`
+  - **4) Entrenar modelos** → ejecuta `run_forecasting()`
+- Selector dinámico de fondos/participaciones cargado desde dimensiones de catálogo.
+- Filtro por tipo de rentabilidad (`rent_30d`, `rent_60d`, `rent_90d`, `rent_180d`, `rent_360d`).
+- Pestañas implementadas:
+  - **Estado**: log cronológico de ejecución
+  - **Observados**: gráfico y tabla de datos usados para entrenamiento
+  - **Forecast**: gráfico y tabla de predicciones (`mean`, `p0.2`, `p0.5`, `p0.8`)
+  - **Comparativo**: resumen agregado por fondo + tipo de rentabilidad
+- Corrección aplicada: se eliminó un loop reactivo en estado que causaba carga infinita en UI.
 
 ---
 
@@ -186,7 +198,7 @@ fics_alternativos/
 | processing.py | ✅ Completado |
 | vacuum.py | ✅ Completado |
 | forecasting.py | ✅ Completado |
-| app.py | 🔲 Pendiente |
+| app.py | 🟡 MVP inicial funcional |
 
 ---
 
